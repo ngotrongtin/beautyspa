@@ -2,6 +2,8 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    // Apply Google Services plugin to process google-services.json
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -75,15 +77,22 @@ dependencies {
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
 
     // Coil for image loading (Compose compatible)
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")
 
     // Material Components (BottomNavigationView, CardView / MaterialCardView)
     implementation("com.google.android.material:material:1.10.0")
+
+    // Firebase BoM and Realtime Database
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-database-ktx")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

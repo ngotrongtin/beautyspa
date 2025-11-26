@@ -1,18 +1,20 @@
 package com.beautyspa.app.ui.screens.booking
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.Specialist
-import com.beautyspa.app.data.repository.ServiceRepository
+import com.beautyspa.app.data.repository.FirebaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class BookingViewModel : ViewModel() {
     
-    private val repository = ServiceRepository()
-    
+    private val repository = FirebaseRepository()
+
     private val _services = MutableStateFlow<List<Service>>(emptyList())
     val services: StateFlow<List<Service>> = _services.asStateFlow()
     
@@ -33,11 +35,30 @@ class BookingViewModel : ViewModel() {
     
     private val _selectedSpecialist = MutableStateFlow<Specialist?>(null)
     val selectedSpecialist: StateFlow<Specialist?> = _selectedSpecialist.asStateFlow()
-    
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     fun loadData() {
-        _services.value = repository.getFeaturedServices()
-        _timeSlots.value = repository.getAvailableTimeSlots()
-        _specialists.value = repository.getSpecialists()
+        if (_isLoading.value) return
+        _isLoading.value = true
+        _error.value = null
+        viewModelScope.launch {
+            try {
+                val services = repository.fetchServices()
+                val specialists = repository.fetchSpecialists()
+                _services.value = services
+                _specialists.value = specialists
+                _timeSlots.value = defaultTimeSlots()
+            } catch (t: Throwable) {
+                _error.value = t.message
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
     
     fun selectService(service: Service) {
@@ -63,5 +84,15 @@ class BookingViewModel : ViewModel() {
                 _selectedDate.value != null &&
                 _selectedTimeSlot.value != null &&
                 _selectedSpecialist.value != null
+    }
+
+    private fun defaultTimeSlots(): List<String> {
+        return listOf(
+            "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM",
+            "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
+            "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM",
+            "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
+            "5:00 PM", "5:30 PM", "6:00 PM"
+        )
     }
 }

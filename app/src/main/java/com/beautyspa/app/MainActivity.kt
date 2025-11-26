@@ -10,12 +10,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.beautyspa.app.ui.navigation.BeautySpaApp
 import com.beautyspa.app.ui.theme.BeautySpaTheme
+import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
+        FirebaseApp.initializeApp(this)
+
         setContent {
             BeautySpaTheme {
                 Surface(
