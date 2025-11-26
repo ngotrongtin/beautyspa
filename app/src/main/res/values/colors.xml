@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Brand Colors - Rose/Pink Theme -->
+    <color name="rose_50">#FFF1F2</color>
+    <color name="rose_100">#FFE4E6</color>
+    <color name="rose_200">#FECDD3</color>
+    <color name="rose_300">#FDA4AF</color>
+    <color name="rose_400">#FB7185</color>
+    <color name="rose_500">#F43F5E</color>
+    <color name="rose_600">#E11D48</color>
+    <color name="rose_700">#BE123C</color>
+    <color name="rose_800">#9F1239</color>
+    <color name="rose_900">#881337</color>
+
+    <!-- Material Design 3 Colors -->
+    <color name="md_theme_light_primary">#E11D48</color>
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#FECDD3</color>
+    <color name="md_theme_light_onPrimaryContainer">#881337</color>
+    
+    <color name="md_theme_light_secondary">#FB7185</color>
+    <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_secondaryContainer">#FFE4E6</color>
+    <color name="md_theme_light_onSecondaryContainer">#9F1239</color>
+    
+    <color name="md_theme_light_background">#FFFBFE</color>
+    <color name="md_theme_light_onBackground">#1C1B1F</color>
+    <color name="md_theme_light_surface">#FFFBFE</color>
+    <color name="md_theme_light_onSurface">#1C1B1F</color>
+    <color name="md_theme_light_surfaceVariant">#FFF1F2</color>
+    <color name="md_theme_light_onSurfaceVariant">#49454F</color>
+    
+    <color name="md_theme_light_error">#B3261E</color>
+    <color name="md_theme_light_onError">#FFFFFF</color>
+    
+    <!-- Additional UI Colors -->
+    <color name="text_primary">#1C1B1F</color>
+    <color name="text_secondary">#49454F</color>
+    <color name="text_tertiary">#79747E</color>
+    
+    <color name="divider">#E7E0EC</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>
