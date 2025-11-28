@@ -93,6 +93,11 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
+    implementation("androidx.compose.foundation:foundation:1.9.5")
+
+    // Networking for chatbot API
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.json:json:20231013")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

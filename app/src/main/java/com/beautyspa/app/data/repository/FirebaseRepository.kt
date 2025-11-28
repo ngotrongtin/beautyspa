@@ -5,6 +5,8 @@ import com.beautyspa.app.data.model.AppointmentStatus
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.ServiceCategory
 import com.beautyspa.app.data.model.Specialist
+import com.beautyspa.app.data.model.User
+import com.beautyspa.app.data.model.UserPreferences
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -69,6 +71,12 @@ class FirebaseRepository(
         return list
     }
 
+    suspend fun fetchUser(): User? {
+        val snapshot = db.child("user").get().await()
+        val map = snapshot.value as? Map<*, *> ?: return null
+        return toUser(map)
+    }
+
     private fun toService(map: Map<*, *>): Service? {
         val id = map["id"] as? String ?: return null
         val name = map["name"] as? String ?: return null
@@ -112,6 +120,36 @@ class FirebaseRepository(
         )
     }
 
+    private fun toUser(map: Map<*, *>): User? {
+        val id = map["id"] as? String ?: return null
+        val firstName = map["firstName"] as? String ?: ""
+        val lastName = map["lastName"] as? String ?: ""
+        val email = map["email"] as? String ?: ""
+        val phone = map["phone"] as? String ?: ""
+        val membershipLevel = map["membershipLevel"] as? String ?: "BRONZE"
+        val loyaltyPoints = (map["loyaltyPoints"] as? Number)?.toInt() ?: 0
+        val prefsMap = map["preferences"] as? Map<*, *>
+        val preferences = if (prefsMap != null) {
+            UserPreferences(
+                favSpecialty = prefsMap["favSpecialty"] as? String ?: "",
+                receivePromotions = prefsMap["receivePromotions"] as? Boolean ?: true,
+                preferredLanguage = prefsMap["preferredLanguage"] as? String ?: "en"
+            )
+        } else UserPreferences()
+        val profileImageUrl = map["profileImageUrl"] as? String ?: ""
+        return User(
+            id = id,
+            firstName = firstName,
+            lastName = lastName,
+            email = email,
+            phone = phone,
+            membershipLevel = membershipLevel,
+            loyaltyPoints = loyaltyPoints,
+            preferences = preferences,
+            profileImageUrl = profileImageUrl
+        )
+    }
+
     private fun toAppointment(
         map: Map<*, *>,
         servicesById: Map<String, Service>,
@@ -120,7 +158,8 @@ class FirebaseRepository(
         val id = map["id"] as? String ?: return null
         val timeSlot = map["timeSlot"] as? String ?: ""
         val statusStr = map["status"] as? String ?: "UPCOMING"
-        val status = runCatching { AppointmentStatus.valueOf(statusStr) }.getOrDefault(AppointmentStatus.UPCOMING)
+        val normalizedStatus = if (statusStr.equals("CANCELED", ignoreCase = true)) "CANCELLED" else statusStr
+        val status = runCatching { AppointmentStatus.valueOf(normalizedStatus) }.getOrDefault(AppointmentStatus.UPCOMING)
         val totalPrice = (map["totalPrice"] as? Number)?.toDouble() ?: 0.0
 
         val serviceMap = map["service"] as? Map<*, *>
@@ -156,4 +195,3 @@ class FirebaseRepository(
         }
     }
 }
-

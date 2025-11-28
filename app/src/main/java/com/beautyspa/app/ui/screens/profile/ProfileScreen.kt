@@ -1,11 +1,10 @@
 package com.beautyspa.app.ui.screens.profile
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +20,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -35,12 +33,13 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val appointments by viewModel.appointments.collectAsState()
+    val user by viewModel.user.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
-    
+
     LaunchedEffect(Unit) {
-        viewModel.loadAppointments()
+        viewModel.loadData()
     }
-    
+
     LaunchedEffect(selectedTab) {
         if (selectedTab == 0) {
             viewModel.filterUpcoming()
@@ -48,7 +47,7 @@ fun ProfileScreen(
             viewModel.filterPast()
         }
     }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -78,37 +77,79 @@ fun ProfileScreen(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Profile",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                    if (user?.profileImageUrl?.isNotBlank() == true) {
+                        AsyncImage(
+                            model = user!!.profileImageUrl,
+                            contentDescription = user!!.fullName,
+                            modifier = Modifier.clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Profile",
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 Text(
-                    text = "Emma Wilson",
+                    text = user?.fullName ?: "Guest User",
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 Text(
-                    text = "emma.wilson@email.com",
+                    text = user?.email ?: "guest@email.com",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
+
+                // Membership + Points Row
+                if (user != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(text = user!!.membershipLevel) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Star, contentDescription = null)
+                            }
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(text = "${user!!.loyaltyPoints} pts") },
+                            leadingIcon = {
+                                Icon(Icons.Default.CardGiftcard, contentDescription = null)
+                            }
+                        )
+                        if (user!!.preferences.favSpecialty.isNotBlank()) {
+                            AssistChip(
+                                onClick = {},
+                                label = { Text(text = user!!.preferences.favSpecialty) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Favorite, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
                 OutlinedButton(
                     onClick = {
                         Toast.makeText(context, "Edit Profile", Toast.LENGTH_SHORT).show()
@@ -119,7 +160,7 @@ fun ProfileScreen(
                 }
             }
         }
-        
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -133,9 +174,9 @@ fun ProfileScreen(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Tabs
             TabRow(
                 selectedTabIndex = selectedTab,
@@ -153,9 +194,9 @@ fun ProfileScreen(
                     text = { Text("Past") }
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Appointments List
             if (appointments.isEmpty()) {
                 Box(
@@ -184,9 +225,9 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             // Menu Options
             MenuOption(
                 icon = Icons.Default.Favorite,
@@ -195,9 +236,9 @@ fun ProfileScreen(
                     Toast.makeText(context, "Favorite Services", Toast.LENGTH_SHORT).show()
                 }
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             MenuOption(
                 icon = Icons.Default.Settings,
                 title = "Settings",
@@ -205,9 +246,9 @@ fun ProfileScreen(
                     Toast.makeText(context, "Settings", Toast.LENGTH_SHORT).show()
                 }
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Logout Button
             OutlinedButton(
                 onClick = {
@@ -218,14 +259,7 @@ fun ProfileScreen(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 ),
-                border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.error,
-                            MaterialTheme.colorScheme.error
-                        )
-                    )
-                )
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
             ) {
                 Text(
                     text = "Logout",
@@ -243,7 +277,7 @@ fun AppointmentCard(
     onCancel: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -265,16 +299,16 @@ fun AppointmentCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
-                
+
                 Text(
                     text = "$${appointment.totalPrice}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             // Specialist Info
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -287,16 +321,16 @@ fun AppointmentCard(
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
-                
+
                 Spacer(modifier = Modifier.width(12.dp))
-                
+
                 Column {
                     Text(
                         text = appointment.specialist.name,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    
+
                     Text(
                         text = appointment.specialist.specialty,
                         style = MaterialTheme.typography.bodySmall,
@@ -304,9 +338,9 @@ fun AppointmentCard(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             // Date and Time
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -328,16 +362,16 @@ fun AppointmentCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
+
                 Text(
                     text = appointment.timeSlot,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -350,7 +384,7 @@ fun AppointmentCard(
                 ) {
                     Text("Reschedule")
                 }
-                
+
                 TextButton(
                     onClick = onCancel,
                     colors = ButtonDefaults.textButtonColors(
@@ -389,16 +423,16 @@ fun MenuOption(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
-            
+
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = "Navigate",
