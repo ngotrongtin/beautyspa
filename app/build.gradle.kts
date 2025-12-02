@@ -21,6 +21,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // Expose API base URL to BuildConfig. Override with -PAPI_BASE_URL or gradle.properties if needed.
+        val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?) ?: "http://10.235.90.91:4000"
+        buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl}\"")
     }
 
     buildTypes {

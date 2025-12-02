@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.Specialist
-import com.beautyspa.app.data.repository.FirebaseRepository
+import com.beautyspa.app.data.repository.ApiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +13,7 @@ import java.util.Calendar
 
 class BookingViewModel : ViewModel() {
     
-    private val repository = FirebaseRepository()
+    private val repository = ApiRepository()
 
     private val _services = MutableStateFlow<List<Service>>(emptyList())
     val services: StateFlow<List<Service>> = _services.asStateFlow()

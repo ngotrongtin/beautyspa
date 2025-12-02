@@ -17,6 +17,7 @@ enum class ServiceCategory(val displayName: String) {
     MASSAGE("Massage"),
     FACIAL("Facial"),
     NAILS("Nails"),
+    WAXING("Waxing"),
     HAIR("Hair"),
     BODY("Body Treatment")
 }

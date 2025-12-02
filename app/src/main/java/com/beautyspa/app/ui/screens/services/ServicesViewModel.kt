@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.ServiceCategory
-import com.beautyspa.app.data.repository.FirebaseRepository
+import com.beautyspa.app.data.repository.ApiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class ServicesViewModel : ViewModel() {
     
-    private val repository = FirebaseRepository()
+    private val repository = ApiRepository()
     private var allServices: List<Service> = emptyList()
     
     private val _services = MutableStateFlow<List<Service>>(emptyList())

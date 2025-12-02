@@ -43,18 +43,7 @@ class ChatRepository {
                 // Try parse known structures
                 return@use try {
                     val obj = JSONObject(raw)
-                    // Prefer specific fields
                     obj.optString("answer")
-                        .ifEmpty { obj.optString("response") }
-                        .ifEmpty { obj.optString("text") }
-                        .ifEmpty {
-                            // Fallback: pick first string value in object
-                            obj.keys().asSequence()
-                                .mapNotNull { k -> obj.opt(k) }
-                                .firstOrNull { it is String }
-                                ?.toString()
-                                ?: raw
-                        }
                 } catch (_: Exception) {
                     // Maybe an array
                     try {

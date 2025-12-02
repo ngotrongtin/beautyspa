@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.beautyspa.app.data.model.Appointment
 import com.beautyspa.app.data.model.AppointmentStatus
 import com.beautyspa.app.data.model.User
-import com.beautyspa.app.data.repository.FirebaseRepository
+import com.beautyspa.app.data.repository.ApiRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import java.util.Date
 
 class ProfileViewModel : ViewModel() {
-    private val repository = FirebaseRepository()
+    private val repository = ApiRepository()
     private var allAppointments: List<Appointment> = emptyList()
 
     private val _appointments = MutableStateFlow<List<Appointment>>(emptyList())
@@ -27,7 +27,7 @@ class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             // Fetch in parallel
             val userDeferred = async { repository.fetchUser() }
-            val apptDeferred = async { repository.fetchAppointments() }
+            val apptDeferred = async { repository.fetchAppointments(pageSize = 200) }
             _user.value = userDeferred.await()
             allAppointments = apptDeferred.await()
             filterUpcoming()
