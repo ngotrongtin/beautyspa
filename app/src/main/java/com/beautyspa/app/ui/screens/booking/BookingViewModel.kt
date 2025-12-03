@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
+import java.util.UUID
 
 class BookingViewModel : ViewModel() {
     
@@ -42,6 +45,13 @@ class BookingViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _paymentClientSecret = MutableStateFlow<String?>(null)
+    val paymentClientSecret: StateFlow<String?> = _paymentClientSecret.asStateFlow()
+
+    fun clearClientSecret() {
+        _paymentClientSecret.value = null
+    }
+
     fun loadData() {
         if (_isLoading.value) return
         _isLoading.value = true
@@ -64,10 +74,10 @@ class BookingViewModel : ViewModel() {
     fun selectService(service: Service) {
         _selectedService.value = service
     }
-    
-    fun selectDate(year: Int, month: Int, dayOfMonth: Int) {
+
+    fun selectDate(date: java.util.Date) {
         val calendar = Calendar.getInstance()
-        calendar.set(year, month, dayOfMonth)
+        calendar.time = date
         _selectedDate.value = calendar
     }
     
@@ -84,6 +94,40 @@ class BookingViewModel : ViewModel() {
                 _selectedDate.value != null &&
                 _selectedTimeSlot.value != null &&
                 _selectedSpecialist.value != null
+    }
+
+    // Create payment intent per backend API. For demo we use a fake user id "demo-user".
+    fun createPaymentIntent() {
+        val service = _selectedService.value ?: run { _error.value = "Select service"; return }
+        val date = _selectedDate.value ?: run { _error.value = "Select date"; return }
+        val timeSlot = _selectedTimeSlot.value ?: run { _error.value = "Select time"; return }
+        val specialist = _selectedSpecialist.value ?: run { _error.value = "Select specialist"; return }
+        if (_isLoading.value) return
+        _isLoading.value = true
+        _error.value = null
+        viewModelScope.launch {
+            try {
+                val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }.format(date.time)
+                val idemp = UUID.randomUUID().toString()
+                val resp = repository.createPaymentIntent(
+                    userId = "u101",
+                    serviceId = service.id,
+                    specialistId = specialist.id,
+                    dateIso = iso,
+                    timeSlot = timeSlot,
+                    amount = service.price,
+                    currency = "usd",
+                    idempotencyKey = idemp
+                )
+                _paymentClientSecret.value = resp.clientSecret
+            } catch (t: Throwable) {
+                _error.value = t.message
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     private fun defaultTimeSlots(): List<String> {

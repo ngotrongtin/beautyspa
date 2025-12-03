@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     // Apply Google Services plugin to process google-services.json
-    id("com.google.gms.google-services")
+    //id("com.google.gms.google-services")
 }
 
 android {
@@ -25,6 +25,9 @@ android {
         // Expose API base URL to BuildConfig. Override with -PAPI_BASE_URL or gradle.properties if needed.
         val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?) ?: "http://10.235.90.91:4000"
         buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl}\"")
+        // Stripe publishable key provided via -PSTRIPE_PUBLISHABLE_KEY or gradle/local properties
+        val stripeKey = (project.findProperty("STRIPE_PUBLISHABLE_KEY") as String?) ?: "pk_test_51NnANvICFXSh1wtRd0oyTnWdPyPnv5RFYePJktzqAVwff8LpMAUr1XOfXV8cIM3Uoxi5IsbIUUAJw1YVMYTFpUov006DzGLZ6A"
+        buildConfigField("String", "STRIPE_PUBLISHABLE_KEY", "\"${stripeKey}\"")
     }
 
     buildTypes {
@@ -94,14 +97,17 @@ dependencies {
     implementation("com.google.android.material:material:1.10.0")
 
     // Firebase BoM and Realtime Database
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-analytics-ktx")
-    implementation("com.google.firebase:firebase-database-ktx")
-    implementation("androidx.compose.foundation:foundation:1.9.5")
+//    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+//    implementation("com.google.firebase:firebase-analytics-ktx")
+//    implementation("com.google.firebase:firebase-database-ktx")
+//    implementation("androidx.compose.foundation:foundation:1.9.5")
 
     // Networking for chatbot API
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.json:json:20231013")
+
+    // Stripe Android SDK for payment confirmation
+    implementation("com.stripe:stripe-android:20.45.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

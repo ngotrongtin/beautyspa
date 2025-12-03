@@ -3,6 +3,7 @@ package com.beautyspa.app.data.repository
 import com.beautyspa.app.BuildConfig
 import com.beautyspa.app.data.model.Appointment
 import com.beautyspa.app.data.model.AppointmentStatus
+import com.beautyspa.app.data.model.PaymentIntentResponse
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.ServiceCategory
 import com.beautyspa.app.data.model.Specialist
@@ -12,8 +13,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -33,6 +36,8 @@ class ApiRepository(
 
     private val resolvedBase = (baseUrl ?: BuildConfig.API_BASE_URL)
     private val baseHttpUrl: HttpUrl = resolvedBase.toHttpUrl()
+
+    private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
     // Small helper to guarantee blocking IO on background thread
     private suspend fun <T> ioCall(block: () -> T): T = withContext(Dispatchers.IO) { block() }
@@ -87,6 +92,7 @@ class ApiRepository(
 
     // Appointments
     suspend fun fetchAppointments(
+        userId: String? = null,
         status: String? = null,
         dateFromIso: String? = null,
         dateToIso: String? = null,
@@ -94,7 +100,15 @@ class ApiRepository(
         pageSize: Int = 100
     ): List<Appointment> {
         val urlBuilder = baseHttpUrl.newBuilder()
-            .addPathSegments("api/appointments")
+        if (userId != null) {
+            urlBuilder.addPathSegments("api/users")
+                .addPathSegment(userId)
+                .addPathSegment("appointments")
+        } else {
+            urlBuilder.addPathSegments("api/appointments")
+        }
+
+        urlBuilder
             .addQueryParameter("page", page.toString())
             .addQueryParameter("pageSize", pageSize.toString())
         if (!status.isNullOrBlank()) urlBuilder.addQueryParameter("status", status)
@@ -104,16 +118,73 @@ class ApiRepository(
         val body = ioCall {
             client.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching appointments")
-                resp.body?.string() ?: "{\"data\":[]}"
+                resp.body?.string() ?: "{\"items\":[]}" // default matches new shape
             }
         }
         val obj = JSONObject(body)
-        val data = obj.optJSONArray("data") ?: JSONArray()
+        val items = obj.optJSONArray("items")
+        val data = if (items != null) items else obj.optJSONArray("data") ?: JSONArray()
         val list = mutableListOf<Appointment>()
         for (i in 0 until data.length()) {
             (data.optJSONObject(i))?.let { toAppointment(it) }?.let(list::add)
         }
         return list
+    }
+
+    // Payments: create payment intent
+    suspend fun createPaymentIntent(
+        userId: String,
+        serviceId: String,
+        specialistId: String,
+        dateIso: String,
+        timeSlot: String,
+        amount: Double,
+        currency: String = "usd",
+        idempotencyKey: String? = null
+    ): PaymentIntentResponse {
+        val url = baseHttpUrl.newBuilder()
+            .addPathSegments("api/payments/intents")
+            .build()
+        val payload = JSONObject()
+            .put("userId", userId)
+            .put("serviceId", serviceId)
+            .put("specialistId", specialistId)
+            .put("date", dateIso)
+            .put("timeSlot", timeSlot)
+            .put("amount", amount)
+            .put("currency", currency)
+        if (!idempotencyKey.isNullOrBlank()) payload.put("idempotencyKey", idempotencyKey)
+
+        val builder = Request.Builder()
+            .url(url)
+            .header("Content-Type", "application/json")
+            .post(payload.toString().toRequestBody(jsonMedia))
+        if (!idempotencyKey.isNullOrBlank()) builder.header("Idempotency-Key", idempotencyKey)
+        val request = builder.build()
+
+        val body = ioCall {
+            client.newCall(request).execute().use { resp ->
+                val raw = resp.body?.string()
+                if (!resp.isSuccessful) {
+                    val msg = try {
+                        val err = if (!raw.isNullOrBlank()) JSONObject(raw) else null
+                        err?.optString("message")?.takeIf { it.isNotBlank() }
+                    } catch (_: Exception) { null }
+                    throw RuntimeException("HTTP ${'$'}{resp.code} creating payment intent" + (msg?.let { ": ${'$'}it" } ?: ""))
+                }
+                raw ?: throw RuntimeException("Empty response when creating payment intent")
+            }
+        }
+        val obj = JSONObject(body)
+        val expires = obj.optString("expiresAt").ifBlank { null }
+        return PaymentIntentResponse(
+            clientSecret = obj.optString("clientSecret"),
+            paymentIntentId = obj.optString("paymentIntentId"),
+            appointmentDraftId = obj.optString("appointmentDraftId"),
+            amount = obj.optDouble("amount", amount),
+            currency = obj.optString("currency", currency),
+            expiresAt = expires
+        )
     }
 
     // User
@@ -128,6 +199,44 @@ class ApiRepository(
         } ?: return null
         val obj = JSONObject(body)
         return toUser(obj)
+    }
+
+    // Appointments detail
+    suspend fun getAppointmentDetail(id: String): Appointment? {
+        val url = baseHttpUrl.newBuilder()
+            .addPathSegments("api/appointments")
+            .addPathSegment(id)
+            .build()
+        val request = Request.Builder().url(url).get().build()
+        val body = ioCall {
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching appointment detail")
+                resp.body?.string() ?: return@use null
+            }
+        } ?: return null
+        return toAppointment(JSONObject(body))
+    }
+
+    // Cancel appointment with optional refund
+    suspend fun cancelAppointment(id: String, refund: Boolean): Appointment? {
+        val url = baseHttpUrl.newBuilder()
+            .addPathSegments("api/appointments")
+            .addPathSegment(id)
+            .addPathSegments("cancel")
+            .build()
+        val payload = JSONObject().put("refund", refund)
+        val request = Request.Builder()
+            .url(url)
+            .header("Content-Type", "application/json")
+            .post(payload.toString().toRequestBody(jsonMedia))
+            .build()
+        val body = ioCall {
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} canceling appointment")
+                resp.body?.string() ?: return@use null
+            }
+        } ?: return null
+        return toAppointment(JSONObject(body))
     }
 
     // Mapping helpers
@@ -213,9 +322,7 @@ class ApiRepository(
         val id = obj.optString("id")
         if (id.isNullOrEmpty()) return null
         val timeSlot = obj.optString("timeSlot", "")
-        val statusStr = obj.optString("status", "UPCOMING")
-        val normalizedStatus = if (statusStr.equals("CANCELED", ignoreCase = true)) "CANCELLED" else statusStr
-        val status = runCatching { AppointmentStatus.valueOf(normalizedStatus) }.getOrDefault(AppointmentStatus.UPCOMING)
+        val status = obj.optString("status", "UPCOMING")
         val totalPrice = obj.optDouble("totalPrice", 0.0)
         val serviceObj = obj.optJSONObject("service")
         val specialistObj = obj.optJSONObject("specialist")

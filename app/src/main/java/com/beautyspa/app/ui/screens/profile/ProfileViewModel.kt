@@ -25,11 +25,13 @@ class ProfileViewModel : ViewModel() {
 
     fun loadData() {
         viewModelScope.launch {
-            // Fetch in parallel
-            val userDeferred = async { repository.fetchUser() }
-            val apptDeferred = async { repository.fetchAppointments(pageSize = 200) }
-            _user.value = userDeferred.await()
-            allAppointments = apptDeferred.await()
+            val userResult = repository.fetchUser()
+            _user.value = userResult
+            if (userResult != null) {
+                allAppointments = repository.fetchAppointments(userId = userResult.id, pageSize = 200)
+            } else {
+                allAppointments = emptyList()
+            }
             filterUpcoming()
         }
     }
@@ -37,14 +39,20 @@ class ProfileViewModel : ViewModel() {
     fun filterUpcoming() {
         val now = Date()
         _appointments.value = allAppointments.filter {
-            it.status == AppointmentStatus.UPCOMING && it.date.after(now)
+            // Consider paid or upcoming future appointments
+            (it.status == "UPCOMING" || it.status == "PAID") && it.date.after(now)
         }
     }
 
     fun filterPast() {
         val now = Date()
         _appointments.value = allAppointments.filter {
-            it.status == AppointmentStatus.COMPLETED || it.date.before(now)
+            // Completed, canceled, failed, refunded, or past-dated items
+            it.status == "COMPLETED" ||
+            it.status == "CANCELLED" ||
+            it.status == "FAILED" ||
+            it.status == "REFUNDED" ||
+            it.date.before(now)
         }
     }
 }

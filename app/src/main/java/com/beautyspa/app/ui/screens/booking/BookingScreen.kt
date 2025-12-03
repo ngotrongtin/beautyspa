@@ -26,8 +26,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.beautyspa.app.BuildConfig
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.Specialist
+import com.stripe.android.PaymentConfiguration
+import com.stripe.android.paymentsheet.PaymentSheet
+import com.stripe.android.paymentsheet.PaymentSheetResult
+import com.stripe.android.paymentsheet.rememberPaymentSheet
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,6 +41,7 @@ fun BookingScreen(
     viewModel: BookingViewModel = viewModel()
 ) {
     val context = LocalContext.current
+
     val services by viewModel.services.collectAsState()
     val timeSlots by viewModel.timeSlots.collectAsState()
     val specialists by viewModel.specialists.collectAsState()
@@ -43,11 +49,54 @@ fun BookingScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val selectedTimeSlot by viewModel.selectedTimeSlot.collectAsState()
     val selectedSpecialist by viewModel.selectedSpecialist.collectAsState()
-    
-    LaunchedEffect(Unit) {
-        viewModel.loadData()
+    val clientSecret by viewModel.paymentClientSecret.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    val paymentSheet = rememberPaymentSheet { paymentResult ->
+        viewModel.clearClientSecret()
+        when (paymentResult) {
+            is PaymentSheetResult.Completed -> {
+                Toast.makeText(context, "Payment successful!", Toast.LENGTH_LONG).show()
+            }
+            is PaymentSheetResult.Canceled -> {
+                Toast.makeText(context, "Payment canceled.", Toast.LENGTH_LONG).show()
+            }
+            is PaymentSheetResult.Failed -> {
+                Toast.makeText(
+                    context,
+                    "Payment failed: ${paymentResult.error.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
-    
+
+    // Initialize Stripe publishable key once (if provided)
+    LaunchedEffect(Unit) {
+        if (BuildConfig.STRIPE_PUBLISHABLE_KEY.isNotBlank()) {
+            PaymentConfiguration.init(context, BuildConfig.STRIPE_PUBLISHABLE_KEY)
+        }
+    }
+
+    LaunchedEffect(Unit) { viewModel.loadData() }
+
+    LaunchedEffect(clientSecret) {
+        val secret = clientSecret
+        if (!secret.isNullOrBlank()) {
+            val configuration = PaymentSheet.Configuration("BeautySpa")
+            paymentSheet.presentWithPaymentIntent(
+                paymentIntentClientSecret = secret,
+                configuration = configuration
+            )
+        }
+    }
+    LaunchedEffect(error) {
+        if (!error.isNullOrBlank()) {
+            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -70,7 +119,7 @@ fun BookingScreen(
                 )
             }
         }
-        
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -96,13 +145,13 @@ fun BookingScreen(
                     }
                 }
             )
-            
+
             // Step 2: Select Date
             BookingStepCard(
                 title = "2. Select Date",
                 content = {
                     var showDatePicker by remember { mutableStateOf(false) }
-                    
+
                     OutlinedButton(
                         onClick = { showDatePicker = true },
                         modifier = Modifier.fillMaxWidth()
@@ -113,19 +162,19 @@ fun BookingScreen(
                             } ?: "Choose a date"
                         )
                     }
-                    
+
                     if (showDatePicker) {
                         DatePickerDialog(
                             onDismiss = { showDatePicker = false },
-                            onDateSelected = { year, month, day ->
-                                viewModel.selectDate(year, month, day)
+                            onDateSelected = {
+                                viewModel.selectDate(it)
                                 showDatePicker = false
                             }
                         )
                     }
                 }
             )
-            
+
             // Step 3: Select Time
             BookingStepCard(
                 title = "3. Select Time",
@@ -146,7 +195,7 @@ fun BookingScreen(
                     }
                 }
             )
-            
+
             // Step 4: Select Specialist
             BookingStepCard(
                 title = "4. Select Specialist",
@@ -165,30 +214,27 @@ fun BookingScreen(
                 }
             )
         }
-        
-        // Confirm Button
+
+        // Footer with a single button
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shadowElevation = 8.dp
         ) {
             Button(
                 onClick = {
-                    if (viewModel.isBookingComplete()) {
-                        Toast.makeText(context, "Booking confirmed!", Toast.LENGTH_SHORT).show()
-                    } else {
+                    if (!viewModel.isBookingComplete()) {
                         Toast.makeText(context, "Please complete all steps", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
+                    viewModel.createPaymentIntent()
                 },
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(
-                    text = "Confirm Booking",
-                    modifier = Modifier.padding(8.dp),
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Text(text = if (isLoading) "Processing..." else "Pay Now", modifier = Modifier.padding(8.dp))
             }
         }
     }
@@ -214,9 +260,9 @@ fun BookingStepCard(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             content()
         }
     }
@@ -256,19 +302,11 @@ fun ServiceCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
-                text = "${service.duration} min",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Text(
-                text = "$${service.price}",
+                text = "${'$'}${service.price}",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -350,9 +388,9 @@ fun SpecialistCard(
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Text(
                 text = specialist.name,
                 style = MaterialTheme.typography.titleSmall,
@@ -361,9 +399,9 @@ fun SpecialistCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            
+
             Spacer(modifier = Modifier.height(4.dp))
-            
+
             Text(
                 text = specialist.specialty,
                 style = MaterialTheme.typography.bodySmall,
@@ -376,30 +414,32 @@ fun SpecialistCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerDialog(
     onDismiss: () -> Unit,
-    onDateSelected: (year: Int, month: Int, day: Int) -> Unit
+    onDateSelected: (date: Date) -> Unit
 ) {
-    val calendar = Calendar.getInstance()
-    val year = calendar.get(Calendar.YEAR)
-    val month = calendar.get(Calendar.MONTH)
-    val day = calendar.get(Calendar.DAY_OF_MONTH)
-    
-    AlertDialog(
+    val datePickerState = rememberDatePickerState()
+
+    DatePickerDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select Date") },
-        text = {
-            // Simple date selection - in production, use Material3 DatePicker
-            Column {
-                Text("Selected: ${month + 1}/$day/$year")
-                Text("(Simplified for demo - use Material3 DatePicker in production)")
-            }
-        },
         confirmButton = {
-            TextButton(onClick = {
-                onDateSelected(year, month, day)
-            }) {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                        calendar.timeInMillis = it
+                        val localCalendar = Calendar.getInstance()
+                        localCalendar.set(
+                            calendar.get(Calendar.YEAR),
+                            calendar.get(Calendar.MONTH),
+                            calendar.get(Calendar.DAY_OF_MONTH)
+                        )
+                        onDateSelected(localCalendar.time)
+                    }
+                }
+            ) {
                 Text("OK")
             }
         },
@@ -408,5 +448,7 @@ fun DatePickerDialog(
                 Text("Cancel")
             }
         }
-    )
+    ) {
+        DatePicker(state = datePickerState)
+    }
 }
