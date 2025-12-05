@@ -2,11 +2,12 @@ package com.beautyspa.app.ui.screens.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.beautyspa.app.data.TokenManager
 import com.beautyspa.app.data.model.Appointment
-import com.beautyspa.app.data.model.AppointmentStatus
+
 import com.beautyspa.app.data.model.User
 import com.beautyspa.app.data.repository.ApiRepository
-import kotlinx.coroutines.async
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,5 +55,14 @@ class ProfileViewModel : ViewModel() {
             it.status == "REFUNDED" ||
             it.date.before(now)
         }
+    }
+
+    fun logout() {
+        // Clear the JWT token
+        TokenManager.clearToken()
+        // Clear user data
+        _user.value = null
+        _appointments.value = emptyList()
+        allAppointments = emptyList()
     }
 }

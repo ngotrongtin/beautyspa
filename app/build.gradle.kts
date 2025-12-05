@@ -93,6 +93,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")
 
+    // Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
     // Material Components (BottomNavigationView, CardView / MaterialCardView)
     implementation("com.google.android.material:material:1.10.0")
 
@@ -105,6 +108,7 @@ dependencies {
     // Networking for chatbot API
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.json:json:20231013")
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // Stripe Android SDK for payment confirmation
     implementation("com.stripe:stripe-android:20.45.0")

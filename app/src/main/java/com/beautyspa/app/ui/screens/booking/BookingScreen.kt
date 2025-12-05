@@ -14,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,10 +37,12 @@ import com.stripe.android.paymentsheet.PaymentSheetResult
 import com.stripe.android.paymentsheet.rememberPaymentSheet
 import java.text.SimpleDateFormat
 import java.util.*
+import com.beautyspa.app.data.TokenManager
 
 @Composable
 fun BookingScreen(
-    viewModel: BookingViewModel = viewModel()
+    viewModel: BookingViewModel = viewModel(),
+    onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -52,6 +56,10 @@ fun BookingScreen(
     val clientSecret by viewModel.paymentClientSecret.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+
+    // Make token state observable so changes trigger recomposition
+    var hasToken by remember { mutableStateOf(!TokenManager.getToken().isNullOrBlank()) }
+    var isAuthenticated by remember { mutableStateOf(hasToken) }
 
     val paymentSheet = rememberPaymentSheet { paymentResult ->
         viewModel.clearClientSecret()
@@ -79,7 +87,18 @@ fun BookingScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.loadData() }
+    // Check token state when services change (for logout detection)
+    LaunchedEffect(services) {
+        val currentToken = !TokenManager.getToken().isNullOrBlank()
+        if (currentToken != hasToken) {
+            // Token state changed (logout happened)
+            hasToken = currentToken
+            isAuthenticated = currentToken
+        } else if (hasToken && isAuthenticated && services.isEmpty()) {
+            // Authenticated but no data loaded - initial load
+            viewModel.loadData()
+        }
+    }
 
     LaunchedEffect(clientSecret) {
         val secret = clientSecret
@@ -95,6 +114,56 @@ fun BookingScreen(
         if (!error.isNullOrBlank()) {
             Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // If not authenticated, show login prompt in place
+    if (!isAuthenticated) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.CalendarMonth,
+                    contentDescription = "Booking",
+                    modifier = Modifier.size(80.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Sign in to book appointments",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Login to access our booking system and schedule your spa services",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onNavigateToLogin() },
+                    modifier = Modifier.fillMaxWidth(0.7f)
+                ) {
+                    Text("Sign In", modifier = Modifier.padding(8.dp))
+                }
+            }
+        }
+        return
     }
 
     Column(

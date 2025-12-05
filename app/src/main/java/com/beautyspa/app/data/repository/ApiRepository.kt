@@ -3,12 +3,14 @@ package com.beautyspa.app.data.repository
 import com.beautyspa.app.BuildConfig
 import com.beautyspa.app.data.model.Appointment
 import com.beautyspa.app.data.model.AppointmentStatus
+import com.beautyspa.app.data.model.AuthResponse
 import com.beautyspa.app.data.model.PaymentIntentResponse
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.ServiceCategory
 import com.beautyspa.app.data.model.Specialist
 import com.beautyspa.app.data.model.User
 import com.beautyspa.app.data.model.UserPreferences
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
@@ -29,15 +31,57 @@ class ApiRepository(
     baseUrl: String? = null
 ) {
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .callTimeout(20, TimeUnit.SECONDS)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        .callTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
     private val resolvedBase = (baseUrl ?: BuildConfig.API_BASE_URL)
     private val baseHttpUrl: HttpUrl = resolvedBase.toHttpUrl()
 
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
+    private val gson = Gson()
+
+    // Helper function to add Authorization header with JWT token
+    private fun Request.Builder.withAuth(): Request.Builder {
+        val token = com.beautyspa.app.data.TokenManager.getToken()
+        if (!token.isNullOrBlank()) {
+            this.header("Authorization", "Bearer $token")
+        }
+        return this
+    }
+
+    suspend fun googleSignIn(idToken: String): AuthResponse {
+        val url = baseHttpUrl.newBuilder()
+            .addPathSegments("api/auth/google")
+            .build()
+
+        val requestBody = JSONObject().apply {
+            put("idToken", idToken)
+        }.toString().toRequestBody(jsonMedia)
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} during Google sign-in")
+                    resp.body?.string() ?: ""
+                }
+            }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return AuthResponse(
+                token = "",
+                expiresIn = "",
+                user = User(id = "", firstName = "", lastName = "", userId = "", email = "")
+            ) // Return a default or error state with empty user
+        }
+        return gson.fromJson(body, AuthResponse::class.java)
+    }
 
     // Small helper to guarantee blocking IO on background thread
     private suspend fun <T> ioCall(block: () -> T): T = withContext(Dispatchers.IO) { block() }
@@ -52,11 +96,16 @@ class ApiRepository(
         if (category != null) urlBuilder.addQueryParameter("category", category.name)
         if (featured != null) urlBuilder.addQueryParameter("featured", featured.toString())
         val request = Request.Builder().url(urlBuilder.build()).get().build()
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching services")
-                resp.body?.string() ?: "[]"
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} fetching services")
+                    resp.body?.string() ?: "[]"
+                }
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return emptyList() // Return an empty list on error
         }
         val arr = JSONArray(body)
         val list = mutableListOf<Service>()
@@ -76,11 +125,16 @@ class ApiRepository(
         if (!specialty.isNullOrBlank()) urlBuilder.addQueryParameter("specialty", specialty)
         if (minRating != null) urlBuilder.addQueryParameter("minRating", minRating.toString())
         val request = Request.Builder().url(urlBuilder.build()).get().build()
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching specialists")
-                resp.body?.string() ?: "[]"
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} fetching specialists")
+                    resp.body?.string() ?: "[]"
+                }
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return emptyList() // Return an empty list on error
         }
         val arr = JSONArray(body)
         val list = mutableListOf<Specialist>()
@@ -114,12 +168,17 @@ class ApiRepository(
         if (!status.isNullOrBlank()) urlBuilder.addQueryParameter("status", status)
         if (!dateFromIso.isNullOrBlank()) urlBuilder.addQueryParameter("dateFrom", dateFromIso)
         if (!dateToIso.isNullOrBlank()) urlBuilder.addQueryParameter("dateTo", dateToIso)
-        val request = Request.Builder().url(urlBuilder.build()).get().build()
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching appointments")
-                resp.body?.string() ?: "{\"items\":[]}" // default matches new shape
+        val request = Request.Builder().url(urlBuilder.build()).withAuth().get().build()
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} fetching appointments")
+                    resp.body?.string() ?: "{\"items\":[]}" // default matches new shape
+                }
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return emptyList() // Return an empty list on error
         }
         val obj = JSONObject(body)
         val items = obj.optJSONArray("items")
@@ -157,23 +216,32 @@ class ApiRepository(
 
         val builder = Request.Builder()
             .url(url)
+            .withAuth()
             .header("Content-Type", "application/json")
             .post(payload.toString().toRequestBody(jsonMedia))
         if (!idempotencyKey.isNullOrBlank()) builder.header("Idempotency-Key", idempotencyKey)
         val request = builder.build()
 
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                val raw = resp.body?.string()
-                if (!resp.isSuccessful) {
-                    val msg = try {
-                        val err = if (!raw.isNullOrBlank()) JSONObject(raw) else null
-                        err?.optString("message")?.takeIf { it.isNotBlank() }
-                    } catch (_: Exception) { null }
-                    throw RuntimeException("HTTP ${'$'}{resp.code} creating payment intent" + (msg?.let { ": ${'$'}it" } ?: ""))
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    val raw = resp.body?.string()
+                    if (!resp.isSuccessful) {
+                        val msg = try {
+                            val err = if (!raw.isNullOrBlank()) JSONObject(raw) else null
+                            err?.optString("message")?.takeIf { it.isNotBlank() }
+                        } catch (_: Exception) {
+                            null
+                        }
+                        throw RuntimeException("HTTP ${resp.code} creating payment intent" + (msg?.let { ": $it" }
+                            ?: ""))
+                    }
+                    raw ?: throw RuntimeException("Empty response when creating payment intent")
                 }
-                raw ?: throw RuntimeException("Empty response when creating payment intent")
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            throw RuntimeException("Failed to create payment intent: ${e.message}", e)
         }
         val obj = JSONObject(body)
         val expires = obj.optString("expiresAt").ifBlank { null }
@@ -190,12 +258,17 @@ class ApiRepository(
     // User
     suspend fun fetchUser(): User? {
         val url = baseHttpUrl.newBuilder().addPathSegments("api/user").build()
-        val request = Request.Builder().url(url).get().build()
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching user")
-                resp.body?.string()
+        val request = Request.Builder().url(url).withAuth().get().build()
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} fetching user")
+                    resp.body?.string()
+                }
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return null // Return null on error
         } ?: return null
         val obj = JSONObject(body)
         return toUser(obj)
@@ -207,12 +280,17 @@ class ApiRepository(
             .addPathSegments("api/appointments")
             .addPathSegment(id)
             .build()
-        val request = Request.Builder().url(url).get().build()
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} fetching appointment detail")
-                resp.body?.string() ?: return@use null
+        val request = Request.Builder().url(url).withAuth().get().build()
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} fetching appointment detail")
+                    resp.body?.string() ?: return@use null
+                }
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return null // Return null on error
         } ?: return null
         return toAppointment(JSONObject(body))
     }
@@ -227,14 +305,20 @@ class ApiRepository(
         val payload = JSONObject().put("refund", refund)
         val request = Request.Builder()
             .url(url)
+            .withAuth()
             .header("Content-Type", "application/json")
             .post(payload.toString().toRequestBody(jsonMedia))
             .build()
-        val body = ioCall {
-            client.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) throw RuntimeException("HTTP ${'$'}{resp.code} canceling appointment")
-                resp.body?.string() ?: return@use null
+        val body = try {
+            ioCall {
+                client.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) throw RuntimeException("HTTP ${resp.code} canceling appointment")
+                    resp.body?.string() ?: return@use null
+                }
             }
+        } catch (e: Exception) {
+            // Log the exception or handle it as needed
+            return null // Return null on error
         } ?: return null
         return toAppointment(JSONObject(body))
     }
@@ -292,6 +376,7 @@ class ApiRepository(
         if (id.isNullOrEmpty()) return null
         val firstName = obj.optString("firstName", "")
         val lastName = obj.optString("lastName", "")
+        val userId = obj.optString("userId", "")
         val email = obj.optString("email", "")
         val phone = obj.optString("phone", "")
         val membershipLevel = obj.optString("membershipLevel", "BRONZE")
@@ -309,6 +394,7 @@ class ApiRepository(
             id = id,
             firstName = firstName,
             lastName = lastName,
+            userId = userId,
             email = email,
             phone = phone,
             membershipLevel = membershipLevel,

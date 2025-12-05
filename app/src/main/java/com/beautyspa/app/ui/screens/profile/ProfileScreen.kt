@@ -23,21 +23,36 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.beautyspa.app.data.TokenManager
 import com.beautyspa.app.data.model.Appointment
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = viewModel()
+    viewModel: ProfileViewModel = viewModel(),
+    onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
     val appointments by viewModel.appointments.collectAsState()
     val user by viewModel.user.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadData()
+    // Make token state observable so changes trigger recomposition
+    var hasToken by remember { mutableStateOf(!TokenManager.getToken().isNullOrBlank()) }
+    var isAuthenticated by remember { mutableStateOf(hasToken) }
+
+    // Check token state when user changes (for logout detection)
+    LaunchedEffect(user) {
+        val currentToken = !TokenManager.getToken().isNullOrBlank()
+        if (currentToken != hasToken) {
+            // Token state changed (logout happened)
+            hasToken = currentToken
+            isAuthenticated = currentToken
+        } else if (hasToken && isAuthenticated && user == null) {
+            // Authenticated but no user data - initial load
+            viewModel.loadData()
+        }
     }
 
     LaunchedEffect(selectedTab) {
@@ -46,6 +61,56 @@ fun ProfileScreen(
         } else {
             viewModel.filterPast()
         }
+    }
+
+    // If not authenticated, show login prompt in place
+    if (!isAuthenticated) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = "Profile",
+                    modifier = Modifier.size(80.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Sign in to view your profile",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Login to see your appointments, preferences, and more",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onNavigateToLogin() },
+                    modifier = Modifier.fillMaxWidth(0.7f)
+                ) {
+                    Text("Sign In", modifier = Modifier.padding(8.dp))
+                }
+            }
+        }
+        return
     }
 
     Column(
@@ -252,7 +317,9 @@ fun ProfileScreen(
             // Logout Button
             OutlinedButton(
                 onClick = {
-                    Toast.makeText(context, "Logout", Toast.LENGTH_SHORT).show()
+                    viewModel.logout()
+                    Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                    // Don't navigate - just let the screen refresh with the "not logged in" state
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),

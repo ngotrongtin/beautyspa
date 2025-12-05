@@ -23,13 +23,15 @@ import com.beautyspa.app.ui.screens.home.HomeScreen
 import com.beautyspa.app.ui.screens.profile.ProfileScreen
 import com.beautyspa.app.ui.screens.services.ServicesScreen
 import com.beautyspa.app.ui.screens.chat.ChatScreen
+import com.beautyspa.app.ui.screens.login.LoginScreen
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Home : Screen("home", "Home", Icons.Default.Home)
     object Services : Screen("services", "Services", Icons.Default.Spa)
     object Booking : Screen("booking", "Booking", Icons.Default.CalendarMonth)
     object Profile : Screen("profile", "Profile", Icons.Default.Person)
     object Chat : Screen("chat", "Chat", Icons.AutoMirrored.Filled.Chat)
+    object Login : Screen("login", "Login")
 }
 
 val bottomNavItems = listOf(
@@ -53,7 +55,7 @@ fun BeautySpaApp() {
 
                 bottomNavItems.forEach { screen ->
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
+                        icon = { Icon(screen.icon!!, contentDescription = screen.title) },
                         label = { Text(screen.title) },
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                         onClick = {
@@ -77,7 +79,9 @@ fun BeautySpaApp() {
         floatingActionButton = {
             if (currentRoute != Screen.Chat.route) {
                 FloatingActionButton(onClick = { navController.navigate(Screen.Chat.route) }) {
-                    Icon(Screen.Chat.icon, contentDescription = Screen.Chat.title)
+                    if (Screen.Chat.icon != null) {
+                        Icon(Screen.Chat.icon!!, contentDescription = Screen.Chat.title)
+                    }
                 }
             }
         }
@@ -89,9 +93,32 @@ fun BeautySpaApp() {
         ) {
             composable(Screen.Home.route) { HomeScreen() }
             composable(Screen.Services.route) { ServicesScreen() }
-            composable(Screen.Booking.route) { BookingScreen() }
-            composable(Screen.Profile.route) { ProfileScreen() }
+            composable(Screen.Booking.route) {
+                BookingScreen(
+                    onNavigateToLogin = {
+                        navController.navigate(Screen.Login.route)
+                    }
+                )
+            }
+            composable(Screen.Profile.route) {
+                ProfileScreen(
+                    onNavigateToLogin = {
+                        navController.navigate(Screen.Login.route)
+                    }
+                )
+            }
             composable(Screen.Chat.route) { ChatScreen() }
+            composable(Screen.Login.route) {
+                LoginScreen(onLoginSuccess = {
+                    // Navigate to Home screen after successful login
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                })
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ data class User(
     val id: String,
     val firstName: String,
     val lastName: String,
+    val userId: String,
     val email: String,
     val phone: String = "",
     val membershipLevel: String = "BRONZE",
@@ -19,4 +20,3 @@ data class User(
 ) {
     val fullName: String get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
 }
-
