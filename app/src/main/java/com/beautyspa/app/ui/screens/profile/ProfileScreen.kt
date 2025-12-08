@@ -33,13 +33,11 @@ import java.util.*
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(),
-    bookingStatusViewModel : BookingStatusViewModel = viewModel(),
     onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
     val appointments by viewModel.appointments.collectAsState()
     val user by viewModel.user.collectAsState()
-    val bookingStatus by bookingStatusViewModel.bookingStatus.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
 
     // Make token state observable so changes trigger recomposition
@@ -55,13 +53,6 @@ fun ProfileScreen(
             isAuthenticated = currentToken
         } else if (hasToken && isAuthenticated && user == null) {
             // Authenticated but no user data - initial load
-            viewModel.loadData()
-        }
-    }
-
-    LaunchedEffect(bookingStatus) {
-        if(bookingStatus == BookingStatus.COMPLETED){
-            bookingStatusViewModel.nulling()
             viewModel.loadData()
         }
     }

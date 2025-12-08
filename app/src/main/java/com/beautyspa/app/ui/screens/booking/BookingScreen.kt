@@ -38,6 +38,7 @@ import com.stripe.android.paymentsheet.rememberPaymentSheet
 import java.text.SimpleDateFormat
 import java.util.*
 import com.beautyspa.app.data.TokenManager
+import com.beautyspa.app.ui.screens.sharedViewmodel.BookingStatusViewModel
 
 @Composable
 fun BookingScreen(
@@ -65,7 +66,6 @@ fun BookingScreen(
         viewModel.clearClientSecret()
         when (paymentResult) {
             is PaymentSheetResult.Completed -> {
-                bookingStatusViewModel.complete()
                 Toast.makeText(context, "Payment successful!", Toast.LENGTH_LONG).show()
             }
             is PaymentSheetResult.Canceled -> {

@@ -46,7 +46,6 @@ fun BeautySpaApp() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
     Scaffold(
         bottomBar = {
             NavigationBar {

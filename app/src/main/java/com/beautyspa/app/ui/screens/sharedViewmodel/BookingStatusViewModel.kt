@@ -1,7 +1,6 @@
 package com.beautyspa.app.ui.screens.sharedViewmodel
 
 import androidx.lifecycle.ViewModel
-import com.beautyspa.app.data.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
