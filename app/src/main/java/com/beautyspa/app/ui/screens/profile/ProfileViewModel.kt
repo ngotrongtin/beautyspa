@@ -65,4 +65,14 @@ class ProfileViewModel : ViewModel() {
         _appointments.value = emptyList()
         allAppointments = emptyList()
     }
+
+    fun cancelAppointment(appointmentId: String) {
+        viewModelScope.launch {
+            val result = repository.cancelAppointment(appointmentId, refund = true)
+            if (result != null) {
+                // Refresh data after cancellation
+                loadData()
+            }
+        }
+    }
 }

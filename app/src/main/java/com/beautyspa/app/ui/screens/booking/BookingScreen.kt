@@ -65,6 +65,7 @@ fun BookingScreen(
         viewModel.clearClientSecret()
         when (paymentResult) {
             is PaymentSheetResult.Completed -> {
+                bookingStatusViewModel.complete()
                 Toast.makeText(context, "Payment successful!", Toast.LENGTH_LONG).show()
             }
             is PaymentSheetResult.Canceled -> {

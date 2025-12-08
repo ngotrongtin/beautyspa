@@ -107,12 +107,17 @@ class BookingViewModel : ViewModel() {
         _error.value = null
         viewModelScope.launch {
             try {
+                val user = repository.fetchUser() ?: run {
+                    _error.value = "User not found"
+                    _isLoading.value = false
+                    return@launch
+                }
                 val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
                     timeZone = java.util.TimeZone.getTimeZone("UTC")
                 }.format(date.time)
                 val idemp = UUID.randomUUID().toString()
                 val resp = repository.createPaymentIntent(
-                    userId = "u101",
+                    userId = user.id,
                     serviceId = service.id,
                     specialistId = specialist.id,
                     dateIso = iso,

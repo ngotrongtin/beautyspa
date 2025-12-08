@@ -25,17 +25,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.beautyspa.app.data.TokenManager
 import com.beautyspa.app.data.model.Appointment
+import com.beautyspa.app.ui.screens.sharedViewmodel.BookingStatus
+import com.beautyspa.app.ui.screens.sharedViewmodel.BookingStatusViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = viewModel(),
+    bookingStatusViewModel : BookingStatusViewModel = viewModel(),
     onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
     val appointments by viewModel.appointments.collectAsState()
     val user by viewModel.user.collectAsState()
+    val bookingStatus by bookingStatusViewModel.bookingStatus.collectAsState()
     var selectedTab by remember { mutableStateOf(0) }
 
     // Make token state observable so changes trigger recomposition
@@ -51,6 +55,13 @@ fun ProfileScreen(
             isAuthenticated = currentToken
         } else if (hasToken && isAuthenticated && user == null) {
             // Authenticated but no user data - initial load
+            viewModel.loadData()
+        }
+    }
+
+    LaunchedEffect(bookingStatus) {
+        if(bookingStatus == BookingStatus.COMPLETED){
+            bookingStatusViewModel.nulling()
             viewModel.loadData()
         }
     }
@@ -284,6 +295,7 @@ fun ProfileScreen(
                             Toast.makeText(context, "Reschedule ${appointment.service.name}", Toast.LENGTH_SHORT).show()
                         },
                         onCancel = {
+                            viewModel.cancelAppointment(appointment.id)
                             Toast.makeText(context, "Cancel ${appointment.service.name}", Toast.LENGTH_SHORT).show()
                         }
                     )
