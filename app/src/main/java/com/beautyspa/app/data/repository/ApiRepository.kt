@@ -44,7 +44,7 @@ class ApiRepository(
 
     // Helper function to add Authorization header with JWT token
     private fun Request.Builder.withAuth(): Request.Builder {
-        val token = com.beautyspa.app.data.TokenManager.getToken()
+        val token = com.beautyspa.app.data.TokenManager.getValidToken()
         if (!token.isNullOrBlank()) {
             this.header("Authorization", "Bearer $token")
         }
