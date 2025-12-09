@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -24,6 +25,7 @@ import com.beautyspa.app.ui.screens.profile.ProfileScreen
 import com.beautyspa.app.ui.screens.services.ServicesScreen
 import com.beautyspa.app.ui.screens.chat.ChatScreen
 import com.beautyspa.app.ui.screens.login.LoginScreen
+import com.beautyspa.app.ui.screens.sharedViewmodel.BookingStatusViewModel
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
     object Home : Screen("home", "Home", Icons.Default.Home)
@@ -46,6 +48,7 @@ fun BeautySpaApp() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val bookingStatusViewModel: BookingStatusViewModel = viewModel()
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -79,7 +82,7 @@ fun BeautySpaApp() {
             if (currentRoute != Screen.Chat.route) {
                 FloatingActionButton(onClick = { navController.navigate(Screen.Chat.route) }) {
                     if (Screen.Chat.icon != null) {
-                        Icon(Screen.Chat.icon!!, contentDescription = Screen.Chat.title)
+                        Icon(Screen.Chat.icon, contentDescription = Screen.Chat.title)
                     }
                 }
             }
@@ -94,6 +97,7 @@ fun BeautySpaApp() {
             composable(Screen.Services.route) { ServicesScreen() }
             composable(Screen.Booking.route) {
                 BookingScreen(
+                    bookingStatusViewModel = bookingStatusViewModel,
                     onNavigateToLogin = {
                         navController.navigate(Screen.Login.route)
                     }
@@ -101,6 +105,7 @@ fun BeautySpaApp() {
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    bookingStatusViewModel = bookingStatusViewModel,
                     onNavigateToLogin = {
                         navController.navigate(Screen.Login.route)
                     }

@@ -43,6 +43,7 @@ import com.beautyspa.app.ui.screens.sharedViewmodel.BookingStatusViewModel
 @Composable
 fun BookingScreen(
     viewModel: BookingViewModel = viewModel(),
+    bookingStatusViewModel: BookingStatusViewModel,
     onNavigateToLogin: () -> Unit
 ) {
     val context = LocalContext.current
@@ -66,6 +67,7 @@ fun BookingScreen(
         viewModel.clearClientSecret()
         when (paymentResult) {
             is PaymentSheetResult.Completed -> {
+                bookingStatusViewModel.complete()
                 Toast.makeText(context, "Payment successful!", Toast.LENGTH_LONG).show()
             }
             is PaymentSheetResult.Canceled -> {
