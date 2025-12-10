@@ -1,7 +1,9 @@
 package com.beautyspa.app.ui.screens.chat
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.beautyspa.app.data.model.BookingState
 import com.beautyspa.app.data.repository.ChatRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,11 +14,12 @@ data class ChatMessage(val text: String, val isUser: Boolean)
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val loading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val paymentState: BookingState? = null
 )
 
-class ChatViewModel : ViewModel() {
-    private val repo = ChatRepository()
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
+    private val repo = ChatRepository(application.applicationContext)
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState
@@ -28,13 +31,19 @@ class ChatViewModel : ViewModel() {
             error = null
         )
         viewModelScope.launch {
-            val answer = repo.ask(question)
-            val botText = if (answer.isNullOrBlank()) "(no response)" else answer
+            val response = repo.ask(question)
+            val botText = if (response.message.isBlank()) "(no response)" else response.message
+
             _uiState.value = _uiState.value.copy(
                 messages = _uiState.value.messages + ChatMessage(botText, false),
                 loading = false,
-                error = if (answer.isNullOrBlank()) "Failed to get answer" else null
+                error = if (response.message.isBlank()) "Failed to get answer" else null,
+                paymentState = response.state
             )
         }
+    }
+
+    fun clearPaymentState() {
+        _uiState.value = _uiState.value.copy(paymentState = null)
     }
 }

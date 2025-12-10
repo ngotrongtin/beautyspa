@@ -4,15 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beautyspa.app.data.TokenManager
 import com.beautyspa.app.data.model.Appointment
-
 import com.beautyspa.app.data.model.User
 import com.beautyspa.app.data.repository.ApiRepository
-
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.Date
+import java.util.Calendar
 
 class ProfileViewModel : ViewModel() {
     private val repository = ApiRepository()
@@ -38,22 +36,35 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun filterUpcoming() {
-        val now = Date()
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val todayStart = calendar.time
+
         _appointments.value = allAppointments.filter {
-            // Consider paid or upcoming future appointments
-            (it.status == "UPCOMING" || it.status == "PAID") && it.date.after(now)
+            // Consider paid or upcoming future appointments (today or later)
+            (it.status == "UPCOMING" || it.status == "PAID") &&
+            !it.date.before(todayStart)
         }
     }
 
     fun filterPast() {
-        val now = Date()
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val todayStart = calendar.time
+
         _appointments.value = allAppointments.filter {
-            // Completed, canceled, failed, refunded, or past-dated items
+            // Completed, canceled, failed, refunded, or past-dated items (before today)
             it.status == "COMPLETED" ||
             it.status == "CANCELLED" ||
             it.status == "FAILED" ||
             it.status == "REFUNDED" ||
-            it.date.before(now)
+            it.date.before(todayStart)
         }
     }
 

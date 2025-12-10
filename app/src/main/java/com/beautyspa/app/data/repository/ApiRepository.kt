@@ -430,11 +430,19 @@ class ApiRepository(
 
     private fun parseIsoDate(value: String): Date? {
         return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-            sdf.timeZone = TimeZone.getTimeZone("UTC")
-            sdf.parse(value)
+            // Try full ISO format first
+            val sdfIso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+            sdfIso.timeZone = TimeZone.getTimeZone("UTC")
+            sdfIso.parse(value)
         } catch (_: Exception) {
-            null
+            try {
+                // Fallback to simple date format (yyyy-MM-dd)
+                val sdfSimple = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                sdfSimple.timeZone = TimeZone.getTimeZone("UTC")
+                sdfSimple.parse(value)
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 }

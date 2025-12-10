@@ -1,5 +1,6 @@
 package com.beautyspa.app.ui.screens.chat
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,14 +10,57 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.beautyspa.app.BuildConfig
+import com.stripe.android.PaymentConfiguration
+import com.stripe.android.paymentsheet.PaymentSheet
+import com.stripe.android.paymentsheet.PaymentSheetResult
+import com.stripe.android.paymentsheet.rememberPaymentSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(vm: ChatViewModel = viewModel()) {
     val uiState by vm.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // Initialize Stripe
+    LaunchedEffect(Unit) {
+        PaymentConfiguration.init(context, BuildConfig.STRIPE_PUBLISHABLE_KEY)
+    }
+
+    // PaymentSheet using the new API
+    val paymentSheet = rememberPaymentSheet { result ->
+        when (result) {
+            PaymentSheetResult.Completed -> {
+                Toast.makeText(context, "Payment successful!", Toast.LENGTH_LONG).show()
+                vm.clearPaymentState()
+            }
+            PaymentSheetResult.Canceled -> {
+                Toast.makeText(context, "Payment canceled", Toast.LENGTH_SHORT).show()
+                vm.clearPaymentState()
+            }
+            is PaymentSheetResult.Failed -> {
+                Toast.makeText(context, "Payment failed: ${result.error.localizedMessage}", Toast.LENGTH_LONG).show()
+                vm.clearPaymentState()
+            }
+        }
+    }
+
+    // Watch for payment state and launch PaymentSheet automatically
+    LaunchedEffect(uiState.paymentState) {
+        val state = uiState.paymentState
+        if (state?.status == "READY_FOR_PAYMENT" && state.client_secret != null) {
+            paymentSheet.presentWithPaymentIntent(
+                paymentIntentClientSecret = state.client_secret,
+                configuration = PaymentSheet.Configuration(
+                    merchantDisplayName = "Beauty Spa"
+                )
+            )
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(title = { Text("Chat") })
