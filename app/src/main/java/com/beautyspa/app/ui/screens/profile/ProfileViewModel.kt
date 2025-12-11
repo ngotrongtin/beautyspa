@@ -69,8 +69,8 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun logout() {
-        // Clear the JWT token
-        TokenManager.clearToken()
+        // Clear the JWT token and any Google sign-in state saved on the device
+        TokenManager.clearAllAuth()
         // Clear user data
         _user.value = null
         _appointments.value = emptyList()

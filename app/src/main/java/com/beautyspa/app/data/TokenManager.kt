@@ -3,6 +3,9 @@ package com.beautyspa.app.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
+import android.util.Log
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import org.json.JSONObject
 
 object TokenManager {
@@ -11,9 +14,11 @@ object TokenManager {
     private const val TOKEN_KEY = "jwt_token"
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
 
     fun initialize(context: Context) {
-        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        appContext = context.applicationContext
+        prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     fun saveToken(token: String) {
@@ -38,6 +43,29 @@ object TokenManager {
 
     fun clearToken() {
         prefs.edit().remove(TOKEN_KEY).apply()
+    }
+
+    /**
+     * Clear all authentication-related state on device: JWT + Google sign-in state (if present).
+     * This will attempt to sign out and revoke Google access asynchronously; failures are ignored.
+     */
+    fun clearAllAuth() {
+        // Clear stored JWT
+        clearToken()
+
+        // Try to sign out from Google if Google APIs are available
+        try {
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .build()
+            val client = GoogleSignIn.getClient(appContext, gso)
+            // Sign out asynchronously; no need to block logout flow
+            client.signOut().addOnCompleteListener { /* no-op */ }
+            // Also revoke access to ensure a fresh consent on next sign-in
+            client.revokeAccess().addOnCompleteListener { /* no-op */ }
+        } catch (e: Throwable) {
+            // Ignore any errors related to Google Play services being unavailable
+        }
     }
 
     /**
