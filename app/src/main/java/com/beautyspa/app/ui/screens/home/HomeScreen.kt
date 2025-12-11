@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.beautyspa.app.data.TokenManager.getValidToken
 import com.beautyspa.app.data.model.Service
 import com.beautyspa.app.data.model.ServiceCategory
 
@@ -35,6 +36,7 @@ fun HomeScreen(
     val categories by viewModel.categories.collectAsState()
     
     LaunchedEffect(Unit) {
+        getValidToken()
         viewModel.loadData()
     }
     

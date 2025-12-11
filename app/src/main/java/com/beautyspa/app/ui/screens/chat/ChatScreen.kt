@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.beautyspa.app.BuildConfig
+import com.beautyspa.app.ui.screens.sharedViewmodel.BookingStatusViewModel
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
@@ -22,7 +23,10 @@ import com.stripe.android.paymentsheet.rememberPaymentSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(vm: ChatViewModel = viewModel()) {
+fun ChatScreen(
+    vm: ChatViewModel = viewModel(),
+    bookingStatusViewModel: BookingStatusViewModel = viewModel()
+) {
     val uiState by vm.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -36,6 +40,7 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
         when (result) {
             PaymentSheetResult.Completed -> {
                 Toast.makeText(context, "Payment successful!", Toast.LENGTH_LONG).show()
+                bookingStatusViewModel.complete()
                 vm.clearPaymentState()
             }
             PaymentSheetResult.Canceled -> {
@@ -44,6 +49,7 @@ fun ChatScreen(vm: ChatViewModel = viewModel()) {
             }
             is PaymentSheetResult.Failed -> {
                 Toast.makeText(context, "Payment failed: ${result.error.localizedMessage}", Toast.LENGTH_LONG).show()
+                bookingStatusViewModel.fail()
                 vm.clearPaymentState()
             }
         }

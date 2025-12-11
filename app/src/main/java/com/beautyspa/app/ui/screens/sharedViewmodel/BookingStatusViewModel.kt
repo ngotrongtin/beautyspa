@@ -18,6 +18,10 @@ class BookingStatusViewModel : ViewModel() {
         _bookingStatus.value = BookingStatus.COMPLETED
     }
 
+    fun fail(){
+        _bookingStatus.value = BookingStatus.FAILED
+    }
+
     fun nulling(){
         _bookingStatus.value = null
     }

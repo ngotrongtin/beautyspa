@@ -111,7 +111,9 @@ fun BeautySpaApp() {
                     }
                 )
             }
-            composable(Screen.Chat.route) { ChatScreen() }
+            composable(Screen.Chat.route) {
+                ChatScreen(bookingStatusViewModel = bookingStatusViewModel)
+            }
             composable(Screen.Login.route) {
                 LoginScreen(onLoginSuccess = {
                     // Navigate to Home screen after successful login
