@@ -23,7 +23,7 @@ class ChatRepository(private val context: Context) {
         .writeTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private val endpoint = "http://10.235.90.91:4000/api/assistant/step"
+    private val endpoint = "http://10.193.62.91:4000/api/assistant/step"
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
     // Store conversation history

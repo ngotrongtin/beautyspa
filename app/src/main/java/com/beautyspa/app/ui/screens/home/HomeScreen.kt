@@ -36,7 +36,7 @@ fun HomeScreen(
     val categories by viewModel.categories.collectAsState()
     
     LaunchedEffect(Unit) {
-        getValidToken()
+        val hello = getValidToken()
         viewModel.loadData()
     }
     

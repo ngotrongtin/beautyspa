@@ -23,7 +23,7 @@ android {
         }
 
         // Expose API base URL to BuildConfig. Override with -PAPI_BASE_URL or gradle.properties if needed.
-        val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?) ?: "http://10.235.90.91:4000"
+        val apiBaseUrl = (project.findProperty("API_BASE_URL") as String?) ?: "http://10.193.62.91:4000"
         buildConfigField("String", "API_BASE_URL", "\"${apiBaseUrl}\"")
         // Stripe publishable key provided via -PSTRIPE_PUBLISHABLE_KEY or gradle/local properties
         val stripeKey = (project.findProperty("STRIPE_PUBLISHABLE_KEY") as String?) ?: "pk_test_51NnANvICFXSh1wtRd0oyTnWdPyPnv5RFYePJktzqAVwff8LpMAUr1XOfXV8cIM3Uoxi5IsbIUUAJw1YVMYTFpUov006DzGLZ6A"
